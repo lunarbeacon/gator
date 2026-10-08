@@ -98,3 +98,14 @@ func handlerRegister(s *state, cmd command) error {
 	fmt.Println("User login set to ", cmd.args[0])
 	return nil
 }
+
+func handlerReset(s *state, cmd command) error {
+
+	// user apocalypse
+	err := s.db.DeleteAllUsers(context.Background())
+	if err != nil {
+		return fmt.Errorf("Reset failed: %v\n", err)
+	}
+
+	return nil
+}
