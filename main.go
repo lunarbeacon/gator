@@ -1,14 +1,18 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"gator/internal/config"
+	"gator/internal/database"
 	"log"
 	"os"
+
+	_ "github.com/lib/pq"
 )
 
 func main() {
-	// need to change to a pointer
+	// load the configuration file
 	conf, err := config.Read()
 	if err != nil {
 		log.Fatal(err)
@@ -16,10 +20,16 @@ func main() {
 	var st state
 	st.conf = conf
 
+	// open a connection to the database
+	db, err := sql.Open("postgres", conf.DbURL)
+	dbQueries := database.New(db)
+	st.db = dbQueries
+
 	cmds := commands{
 		cmdMap: make(map[string]func(st *state, cmd command) error),
 	}
 	cmds.register("login", handlerLogin)
+	cmds.register("register", handlerRegister)
 
 	if len(os.Args) < 2 {
 		fmt.Println("Usage: gator [command] [args]")
