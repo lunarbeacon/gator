@@ -116,6 +116,19 @@ func handlerUsers(s *state, cmd command) error {
 	return nil
 }
 
+func handlerFetchFeed(s *state, cmd command) error {
+
+	feedURL := "https://www.wagslane.dev/index.xml"
+	rssFeed, err := fetchFeed(context.Background(), feedURL)
+	if err != nil {
+		return fmt.Errorf("fetch feed failed: %v\n", err)
+	}
+
+	fmt.Printf("RSSfeed: %v\n", rssFeed)
+
+	return nil
+}
+
 func handlerReset(s *state, cmd command) error {
 
 	// user apocalypse
