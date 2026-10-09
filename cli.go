@@ -129,6 +129,35 @@ func handlerFetchFeed(s *state, cmd command) error {
 	return nil
 }
 
+func handlerAddFeed(s *state, cmd command) error {
+	if len(cmd.args) != 2 {
+		fmt.Println("Usage: gator addfeed <feed name> <url>")
+		return fmt.Errorf("feed name and url not supplied for %s", cmd.name)
+	}
+
+	// get the user id of the current user
+	user, err := s.db.GetUser(context.Background(), s.conf.CurrentUserName)
+	if err != nil {
+		return fmt.Errorf("could not get user %s: %v", s.conf.CurrentUserName, err)
+	}
+	userID := user.ID
+
+	parms := database.CreateFeedParams{}
+	parms.ID = uuid.New()
+	parms.CreatedAt = time.Now()
+	parms.UpdatedAt = time.Now()
+	parms.Name = cmd.args[0]
+	parms.Url = cmd.args[1]
+	parms.UserID = userID
+	feed, err := s.db.CreateFeed(context.Background(), parms)
+	if err != nil {
+		return fmt.Errorf("could not create feed %s: %v", cmd.args[0], err)
+	}
+
+	fmt.Printf("New feed created: %+v ", feed)
+	return nil
+}
+
 func handlerReset(s *state, cmd command) error {
 
 	// user apocalypse
