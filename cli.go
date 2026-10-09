@@ -99,6 +99,23 @@ func handlerRegister(s *state, cmd command) error {
 	return nil
 }
 
+func handlerUsers(s *state, cmd command) error {
+	users, err := s.db.GetUsers(context.Background())
+	if err != nil {
+		return fmt.Errorf("could not get users: %v", err)
+	}
+	currentUser := s.conf.CurrentUserName
+
+	for _, user := range users {
+		if user.Name == currentUser {
+			fmt.Println(user.Name, "(current)")
+		} else {
+			fmt.Println(user.Name)
+		}
+	}
+	return nil
+}
+
 func handlerReset(s *state, cmd command) error {
 
 	// user apocalypse
