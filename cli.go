@@ -154,7 +154,19 @@ func handlerAddFeed(s *state, cmd command) error {
 		return fmt.Errorf("could not create feed %s: %v", cmd.args[0], err)
 	}
 
-	fmt.Printf("New feed created: %+v ", feed)
+	fmt.Printf("New feed created: %s\n", feed.Name)
+	return nil
+}
+
+func handlerFeeds(s *state, cmd command) error {
+	feeds, err := s.db.GetFeeds(context.Background())
+	if err != nil {
+		return fmt.Errorf("could not get feeds: %v", err)
+	}
+
+	for _, feed := range feeds {
+		fmt.Printf("%s\t\t %s\t\t %s\n", feed.Name, feed.Url, feed.Username)
+	}
 	return nil
 }
 
