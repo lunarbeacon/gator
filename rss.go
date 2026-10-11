@@ -57,12 +57,35 @@ func fetchFeed(ctx context.Context, feedURL string) (*RSSFeed, error) {
 		return nil, err
 	}
 
+	return &rssFeed, nil
+}
+
+func scrapeFeeds(s *state) {
+	ctx := context.Background()
+
+	// get the next feed
+	feed, err := s.db.GetNextFeedToFetch(ctx)
+	if err != nil {
+		fmt.Printf("Failed to fetch feed: %v", err)
+	}
+	fmt.Printf("getting feed %s\n", feed.Name)
+	// mark it as fetched
+	_, err = s.db.MarkFeedFetched(ctx, feed.ID)
+	if err != nil {
+		fmt.Printf("Failed to mark feed: %v", err)
+	}
+
+	// get the feed by its url
+	var rssFeed *RSSFeed
+	rssFeed, err = fetchFeed(ctx, feed.Url)
+	if err != nil {
+		fmt.Printf("Failed to fetch feed: %v", err)
+	}
 	rssFeed.Channel.Title = html.EscapeString(rssFeed.Channel.Title)
 	rssFeed.Channel.Description = html.EscapeString(rssFeed.Channel.Description)
 	for _, item := range rssFeed.Channel.Item {
-		item.Title = html.EscapeString(item.Title)
-		item.Description = html.EscapeString(item.Description)
+		// item.Title = html.EscapeString(item.Title)
+		fmt.Printf("%s\n", item.Title)
 	}
 
-	return &rssFeed, nil
 }

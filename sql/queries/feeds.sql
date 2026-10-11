@@ -18,3 +18,14 @@ FROM feeds INNER JOIN users ON feeds.user_id = users.id;
 SELECT feeds.id, feeds.name, feeds.url
 FROM feeds
 WHERE feeds.url = $1;
+
+-- name: MarkFeedFetched :one
+UPDATE feeds SET updated_at = CURRENT_TIMESTAMP, last_fetched_at = CURRENT_TIMESTAMP
+WHERE feeds.id = $1
+RETURNING *;
+
+-- name: GetNextFeedToFetch :one
+SELECT feeds.id, feeds.name, feeds.url, feeds.last_fetched_at
+FROM feeds
+ORDER BY last_fetched_at NULLS FIRST
+LIMIT 1;

@@ -117,30 +117,39 @@ func handlerUsers(s *state, cmd command) error {
 }
 
 func handlerFetchFeed(s *state, cmd command) error {
-
-	feedURL := "https://www.wagslane.dev/index.xml"
-	rssFeed, err := fetchFeed(context.Background(), feedURL)
-	if err != nil {
-		return fmt.Errorf("fetch feed failed: %v\n", err)
+	if len(cmd.args) != 1 {
+		fmt.Println("Usage: gator agg <time between requests> <url>")
+		return fmt.Errorf("no time between requests provided: %s", cmd.name)
 	}
 
-	fmt.Printf("RSSfeed: %v\n", rssFeed)
+	timeBetweenRequests, err := time.ParseDuration(cmd.args[0])
+	if err != nil {
+		fmt.Printf("Invalid time between requests: %s\n", cmd.args[0])
+	}
 
-	return nil
+	fmt.Printf("Collecting feeds every %v\n", timeBetweenRequests)
+	ticker := time.NewTicker(timeBetweenRequests)
+	defer ticker.Stop()
+
+	for ; ; <-ticker.C {
+		scrapeFeeds(s)
+	}
+
 }
 
-func handlerAddFeed(s *state, cmd command) error {
+func handlerAddFeed(s *state, cmd command, user database.User) error {
+
 	if len(cmd.args) != 2 {
 		fmt.Println("Usage: gator addfeed <feed name> <url>")
 		return fmt.Errorf("feed name and url not supplied for %s", cmd.name)
 	}
 
 	// get the user id of the current user
-	user, err := s.db.GetUser(context.Background(), s.conf.CurrentUserName)
-	if err != nil {
-		return fmt.Errorf("could not get user %s: %v", s.conf.CurrentUserName, err)
-	}
-	userID := user.ID
+	// user, err := s.db.GetUser(context.Background(), s.conf.CurrentUserName)
+	//if err != nil {
+	//	return fmt.Errorf("could not get user %s: %v", s.conf.CurrentUserName, err)
+	//}
+	//userID := user.ID
 
 	// create the feed in the database
 	parms := database.CreateFeedParams{}
@@ -149,7 +158,7 @@ func handlerAddFeed(s *state, cmd command) error {
 	parms.UpdatedAt = time.Now()
 	parms.Name = cmd.args[0]
 	parms.Url = cmd.args[1]
-	parms.UserID = userID
+	parms.UserID = user.ID
 	feed, err := s.db.CreateFeed(context.Background(), parms)
 	if err != nil {
 		return fmt.Errorf("could not create feed %s: %v", cmd.args[0], err)
@@ -160,7 +169,7 @@ func handlerAddFeed(s *state, cmd command) error {
 	followparms.ID = uuid.New()
 	followparms.CreatedAt = time.Now()
 	followparms.UpdatedAt = time.Now()
-	followparms.UserID = userID
+	followparms.UserID = user.ID
 	followparms.FeedID = feed.ID
 	_, err = s.db.CreateFeedFollow(context.Background(), followparms)
 	if err != nil {
@@ -183,23 +192,17 @@ func handlerFeeds(s *state, cmd command) error {
 	return nil
 }
 
-func handlerAddFeedFollow(s *state, cmd command) error {
+func handlerFollow(s *state, cmd command, user database.User) error {
 	if len(cmd.args) != 1 {
 		fmt.Println("Usage: gator follow <feed url>")
 		return fmt.Errorf("feed url not supplied for %s", cmd.name)
 	}
 
-	// get the user id of the current user
-	user, err := s.db.GetUser(context.Background(), s.conf.CurrentUserName)
-	if err != nil {
-		return fmt.Errorf("could not get user %s: %v", s.conf.CurrentUserName, err)
-	}
-	userID := user.ID
-
 	// get the feed_id of the feed to follow
 	feed, err := s.db.GetFeedByURL(context.Background(), cmd.args[0])
 	if err != nil {
-		return fmt.Errorf("could not get feed %s: %v", cmd.args[0], err)
+		fmt.Printf("Feed not found: %v\n", err)
+		return err
 	}
 	feedID := feed.ID
 
@@ -207,7 +210,7 @@ func handlerAddFeedFollow(s *state, cmd command) error {
 	parms.ID = uuid.New()
 	parms.CreatedAt = time.Now()
 	parms.UpdatedAt = time.Now()
-	parms.UserID = userID
+	parms.UserID = user.ID
 	parms.FeedID = feedID
 	feedfollow, err := s.db.CreateFeedFollow(context.Background(), parms)
 	if err != nil {
@@ -218,15 +221,43 @@ func handlerAddFeedFollow(s *state, cmd command) error {
 	return nil
 }
 
-func handlerFollowing(s *state, cmd command) error {
-	feeds, err := s.db.GetFeedFollowsForUser(context.Background(), s.conf.CurrentUserName)
+func handlerFollowing(s *state, cmd command, user database.User) error {
+	feeds, err := s.db.GetFeedFollowsForUser(context.Background(), user.Name)
 	if err != nil {
-		return fmt.Errorf("could not get feeds followed: %v", err)
+		fmt.Printf("No feeds being followed: %v\n", err)
+		return err
 	}
 
 	for _, feed := range feeds {
 		fmt.Printf("%s\n", feed.Feedname)
 	}
+	return nil
+}
+
+func handlerUnfollow(s *state, cmd command, user database.User) error {
+	if len(cmd.args) != 1 {
+		fmt.Println("Usage: gator unfollow <feed name>")
+		return nil
+	}
+
+	// get the feed ID using the URL passed as an arg
+	feedURL := cmd.args[0]
+	rssFeed, err := s.db.GetFeedByURL(context.Background(), feedURL)
+	if err != nil {
+		fmt.Printf("Feed not found %s: %v\n", feedURL, err)
+		return err
+	}
+	feedID := rssFeed.ID
+	parms := database.DeleteFeedFollowParams{}
+	parms.UserID = user.ID
+	parms.FeedID = feedID
+
+	err = s.db.DeleteFeedFollow(context.Background(), parms)
+	if err != nil {
+		fmt.Printf("Could not delete %s: %v\n", feedURL, err)
+		return err
+	}
+
 	return nil
 }
 
