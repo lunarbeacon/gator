@@ -13,3 +13,8 @@ VALUES (
 -- name: GetFeeds :many
 SELECT feeds.name, feeds.url, users.name AS username
 FROM feeds INNER JOIN users ON feeds.user_id = users.id;
+
+-- name: GetFeedByURL :one
+SELECT feeds.id, feeds.name, feeds.url
+FROM feeds
+WHERE feeds.url = $1;

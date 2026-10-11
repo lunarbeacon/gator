@@ -35,11 +35,13 @@ func main() {
 	cmds.register("agg", handlerFetchFeed)
 	cmds.register("addfeed", handlerAddFeed)
 	cmds.register("feeds", handlerFeeds)
+	cmds.register("follow", handlerAddFeedFollow)
+	cmds.register("following", handlerFollowing)
 
-	if len(os.Args) < 2 {
-		fmt.Println("Usage: gator [command] [args]")
-		os.Exit(1)
-	}
+	// if len(os.Args) < 2 {
+	//	fmt.Println("Usage: gator [command] [args]")
+	//	os.Exit(1)
+	// }
 
 	var thisCommand command
 	thisCommand.name = os.Args[1]
@@ -49,7 +51,7 @@ func main() {
 
 	err = cmds.run(&st, thisCommand)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Printf("Error: %v\n", err)
 	}
 
 }
