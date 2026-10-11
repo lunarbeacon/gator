@@ -2,12 +2,16 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"encoding/xml"
 	"fmt"
-	"html"
+	"gator/internal/database"
 	"io"
 	"log"
 	"net/http"
+	"time"
+
+	"github.com/google/uuid"
 )
 
 type RSSFeed struct {
@@ -81,11 +85,34 @@ func scrapeFeeds(s *state) {
 	if err != nil {
 		fmt.Printf("Failed to fetch feed: %v", err)
 	}
-	rssFeed.Channel.Title = html.EscapeString(rssFeed.Channel.Title)
-	rssFeed.Channel.Description = html.EscapeString(rssFeed.Channel.Description)
+
+	// load the feed items into the posts table in the database
 	for _, item := range rssFeed.Channel.Item {
-		// item.Title = html.EscapeString(item.Title)
-		fmt.Printf("%s\n", item.Title)
+		parms := database.CreatePostParams{}
+		parms.ID = uuid.New()
+		parms.CreatedAt = time.Now()
+		parms.UpdatedAt = time.Now()
+		parms.Title = item.Title
+		parms.Url = item.Link
+		if len(item.Description) == 0 {
+			parms.Description = sql.NullString{}
+		} else {
+			parms.Description = sql.NullString{String: item.Description, Valid: true}
+		}
+		// try to parse the pub date two ways
+		t, err := time.Parse(time.RFC1123Z, item.PubDate)
+		if err != nil {
+			t, err = time.Parse("Mon, 02 Jan 2006 15:04:05 MST", item.PubDate)
+			if err != nil {
+				fmt.Printf("Failed to parse pub date: %s, %v", item.PubDate, err)
+				parms.PublishedAt = sql.NullTime{}
+			}
+		} else {
+			parms.PublishedAt = sql.NullTime{Time: t, Valid: true}
+		}
+		parms.FeedID = feed.ID
+		_, _ = s.db.CreatePost(ctx, parms)
+
 	}
 
 }
