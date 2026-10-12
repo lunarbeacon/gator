@@ -6,6 +6,7 @@ import (
 	"gator/internal/config"
 	"gator/internal/database"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -258,6 +259,34 @@ func handlerUnfollow(s *state, cmd command, user database.User) error {
 		return err
 	}
 
+	return nil
+}
+
+func handlerBrowse(s *state, cmd command, user database.User) error {
+	var limit int32
+	if len(cmd.args) == 0 {
+		limit = 2
+	} else {
+		val, err := strconv.ParseInt(cmd.args[0], 10, 32)
+		if err != nil {
+			limit = 2
+		} else {
+			limit = int32(val)
+		}
+	}
+
+	parms := database.GetPostsForUserParams{}
+	parms.Name = user.Name
+	parms.Limit = limit
+	posts, err := s.db.GetPostsForUser(context.Background(), parms)
+
+	if err != nil {
+		fmt.Printf("could not get posts: %v\n", err)
+	}
+
+	for _, post := range posts {
+		fmt.Printf("%s\t%s\n%s\n\n", post.Title, post.Url, post.Description)
+	}
 	return nil
 }
 
